@@ -380,22 +380,23 @@ def parse_selection(text: str, max_n: int) -> list[int]:
     return sorted(n for n in nums if 1 <= n <= max_n)
 
 
-def download_song(song: dict, out_dir: Path, audio: bool):
+def download_song(song: dict, out_dir: Path, audio: bool, lyrics: bool = True):
     dl_fn = PLATFORMS[song['platform']][2]
     fname = safe_filename(f"{song['name']}_{song['artist']}")
     song_dir = out_dir / fname
     song_dir.mkdir(parents=True, exist_ok=True)
 
     # 歌词
-    print(f'  {CYAN}⬇ 歌词下载中...{RESET}', end='', flush=True)
-    try:
-        path = dl_fn(song, song_dir)
-        if path:
-            print(f'\r  {GREEN}✓ 歌词：{path.name}{RESET}')
-        else:
-            print(f'\r  {YELLOW}! 无歌词{RESET}')
-    except Exception as e:
-        print(f'\r  {RED}✗ 歌词失败：{e}{RESET}')
+    if lyrics:
+        print(f'  {CYAN}⬇ 歌词下载中...{RESET}', end='', flush=True)
+        try:
+            path = dl_fn(song, song_dir)
+            if path:
+                print(f'\r  {GREEN}✓ 歌词：{path.name}{RESET}')
+            else:
+                print(f'\r  {YELLOW}! 无歌词{RESET}')
+        except Exception as e:
+            print(f'\r  {RED}✗ 歌词失败：{e}{RESET}')
 
     # 音频
     if audio:
@@ -424,20 +425,37 @@ def download_song(song: dict, out_dir: Path, audio: bool):
 def main():
     parser = argparse.ArgumentParser(description='聚合音乐搜索 + 下载')
     parser.add_argument('query', nargs='+', help='搜索关键词')
-    parser.add_argument('-n', '--limit',     type=int, default=5,   help='每平台条数 (默认5)')
+    parser.add_argument('-n',    type=int,   default=None, help='每平台返回条数，指定后进入列表选择模式')
     parser.add_argument('-o', '--output',    default='~/Music/lddc', help='保存目录')
-    parser.add_argument('-p', '--platforms', nargs='+', choices=['kg','ne','qq'], default=['kg','ne','qq'])
-    parser.add_argument('--no-audio',        action='store_true',    help='只下载歌词')
+    parser.add_argument('-p', '--platforms', nargs='+', choices=['kg','ne','qq'], default=None)
+    parser.add_argument('--lrc',             action='store_true', help='同时下载歌词')
     args = parser.parse_args()
 
-    query    = ' '.join(args.query)
-    out_dir  = Path(args.output).expanduser()
+    query   = ' '.join(args.query)
+    out_dir = Path(args.output).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
-    selected_platforms = [(k, *PLATFORMS[k]) for k in args.platforms]
+
+    # 快捷模式（默认）：酷狗第一条，仅音频
+    if args.n is None:
+        platform = args.platforms[0] if args.platforms else 'kg'
+        search_fn = PLATFORMS[platform][1]
+        print(f'{BOLD}⚡ {query}{RESET}  {GREY}({PLATFORMS[platform][0]}){RESET}')
+        rows = search_fn(query, 1)
+        if not rows:
+            print(f'{RED}无结果{RESET}')
+            return
+        song = rows[0]
+        print(f'{GREY}{song["name"]} — {song["artist"]} {song["dur"]}{RESET}')
+        download_song(song, out_dir, audio=True, lyrics=args.lrc)
+        return
+
+    # 列表选择模式
+    platforms = args.platforms or ['kg', 'ne', 'qq']
+    selected_platforms = [(k, *PLATFORMS[k]) for k in platforms]
 
     print(f'\n{BOLD}搜索：{query}{RESET}  {GREY}(并行中…){RESET}')
     t0   = time.time()
-    rows = search_all(query, selected_platforms, args.limit)
+    rows = search_all(query, selected_platforms, args.n)
     print(f'{GREY}完成 {time.time()-t0:.1f}s，共 {len(rows)} 条{RESET}')
 
     if not rows:
@@ -464,7 +482,7 @@ def main():
     for idx in indices:
         song = rows[idx - 1]
         print(f'\n[{idx}] {song["name"]} — {song["artist"]} ({song["label"]})')
-        download_song(song, out_dir, audio=not args.no_audio)
+        download_song(song, out_dir, audio=True, lyrics=args.lrc)
 
     print()
 
