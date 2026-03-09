@@ -4,9 +4,9 @@
 
 ## 功能
 
-- 并行搜索三个平台，2s 内返回结果
-- 显示歌词精度（逐字 / 逐行），优先展示逐字版本
-- 交互选择，下载**歌词 + 音频**到同一文件夹
+- 默认快捷下载：一条命令直接下载酷狗第一条，无需交互
+- `-n` 列表模式：并行搜索三平台，显示编号列表供选择
+- 显示歌词精度（逐字 / 逐行）
 - KRC（酷狗逐字）、YRC（网易云逐字）原格式保存
 - 音频自动转 MP3（ffmpeg）
 
@@ -20,28 +20,47 @@ brew install ffmpeg   # macOS，用于音频转码
 ## 使用
 
 ```bash
-python music_search.py 素颜
-python music_search.py "周杰伦 稻香" -n 10        # 每平台显示10条
-python music_search.py 晴天 -p kg ne             # 只搜酷狗和网易云
-python music_search.py 弱水三千 --no-audio        # 只下载歌词
+# 默认：快捷下载酷狗第一条，仅音频
+python music_search.py 稻香
+
+# 带歌词
+python music_search.py 稻香 --lrc
+
+# 列表模式：每平台返回5条，交互选择
+python music_search.py 稻香 -n 5
+
+# 限定平台
+python music_search.py 稻香 -n 5 -p kg ne
+python music_search.py 稻香 -p ne          # 快捷模式 + 指定平台
+
+# 自定义保存目录
+python music_search.py 稻香 -o ~/Downloads
 ```
 
-搜索后输入编号选择，支持多选：
+列表模式支持多选：
 
 ```
 选择编号 (1-15，多个用逗号，回车取消): 1,3,5-7
 ```
 
+## 参数
+
+| 参数 | 说明 |
+|------|------|
+| `-n <数量>` | 每平台返回条数，指定后进入列表选择模式 |
+| `-p kg ne qq` | 限定搜索平台（kg酷狗 ne网易云 qq） |
+| `--lrc` | 同时下载歌词（默认只下音频） |
+| `-o <目录>` | 自定义保存目录（默认 ~/Music/lddc） |
+
 ## 输出结构
 
 ```
 ~/Music/lddc/
+  稻香_周杰伦/
+    稻香_周杰伦.mp3
   素颜_许嵩、何曼婷/
-    素颜_许嵩、何曼婷.krc     # KRC 逐字歌词
-    素颜_许嵩、何曼婷.mp3     # 音频
-  弱水三千_张晓棠、石头/
-    弱水三千_张晓棠、石头.krc
-    弱水三千_张晓棠、石头.mp3
+    素颜_许嵩、何曼婷.krc     # --lrc 时保存
+    素颜_许嵩、何曼婷.mp3
 ```
 
 ## 歌词格式
